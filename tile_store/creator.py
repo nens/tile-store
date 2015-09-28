@@ -50,7 +50,7 @@ def func(job):
     """ Make tile. """
     tile, count = job
     tile.make()
-    return count
+    return job
 
 
 class BBox(object):
@@ -89,8 +89,11 @@ class Tile(object):
         self.z = z
         self.storage = storage
 
-    def __nonzero__(self):
-        return self.data is not None
+    def __str__(self):
+        return '<{n}: {z}/{x}/{y}>'.format(x=self.x,
+                                           y=self.y,
+                                           z=self.z,
+                                           n=self.__class__.__name__)
 
     def get_geo_transform(self):
         """ Return GeoTransform """
@@ -253,7 +256,7 @@ class Pyramid(object):
             yield Level(tile=OverviewTile, zoom=zoom, method=gra2, **kwargs)
 
 
-def tiles(source_path, target_path, classic, single, **kwargs):
+def tiles(source_path, target_path, classic, single, verbose, **kwargs):
     """ Create tiles. """
     # inspect dataset
     dataset = gdal.Open(source_path)
@@ -282,14 +285,17 @@ def tiles(source_path, target_path, classic, single, **kwargs):
         elif level_count == 1:
             logger.info('Generating Overview Tiles:')
 
-        for tile_count in pool.imap(func, itertools.izip(level, count)):
+        for tile, tile_count in pool.imap(func, itertools.izip(level, count)):
 
             # progress bar
-            if tile_count > total1:
+            if verbose:
+                logger.debug(tile)
+            elif tile_count > total1:
                 progress = (tile_count - total1) / (total2 - total1)
+                gdal.TermProgress_nocb(progress)
             else:
                 progress = tile_count / total1
-            gdal.TermProgress_nocb(progress)
+                gdal.TermProgress_nocb(progress)
 
 
 def get_parser():
@@ -300,27 +306,27 @@ def get_parser():
     class FormatterClass(FormatterClass1, FormatterClass2):
         pass
 
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=FormatterClass,
-    )
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=FormatterClass)
+
     # positional
+    parser.add_argument('source_path', metavar='SOURCE')
+    parser.add_argument('target_path', metavar='TARGET')
+    parser.add_argument('zoom', metavar='ZOOM', type=int)
+
+    # optional
+    parser.add_argument('-b', '--base', dest='gra1', default='cubic',
+                        help='GDAL resampling for base tiles.')
+    parser.add_argument('-c', '--classic', action='store_true',
+                        help='Use classic storage instead of ZipFileStorage')
+    parser.add_argument('-o', '--overview', dest='gra2', default='cubic',
+                        help='GDAL resampling for overview tiles.')
+    parser.add_argument('-q', '--quality', default=95,
+                        type=int, help='JPEG quality for non-edge tiles')
     parser.add_argument('-s', '--single', action='store_true',
                         help='disable multiprocessing')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='print debug-level log messages')
-    parser.add_argument('-c', '--classic', action='store_true',
-                        help='Use classic storage instead of ZipFileStorage')
-    parser.add_argument('-b', '--base', dest='gra1', default='cubic',
-                        help='resampling for base tiles.')
-    parser.add_argument('-o', '--overview', dest='gra2', default='cubic',
-                        help='resampling for overview tiles.')
-    parser.add_argument('-q', '--quality', default=95,
-                        type=int, help='JPEG quality for non-edge tiles')
-    # optional
-    parser.add_argument('source_path', metavar='SOURCE')
-    parser.add_argument('target_path', metavar='TARGET')
-    parser.add_argument('zoom', metavar='ZOOM', type=int)
     return parser
 
 
@@ -328,7 +334,7 @@ def main():
     """ Call tiles with args from parser. """
     # logging
     kwargs = vars(get_parser().parse_args())
-    if kwargs.pop('verbose'):
+    if kwargs['verbose']:
         level = logging.DEBUG
     else:
         level = logging.INFO
