@@ -33,7 +33,7 @@ def zoomtable(latitude):
     print('---- ----------')
 
     template = '{:4d}{:11.3f}'
-    for zoomlevel in range(0, 22):
+    for zoomlevel in range(0, 25):
         print(template.format(zoomlevel, resolution(zoomlevel)))
 
 
