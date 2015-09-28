@@ -1,9 +1,54 @@
 tile-store
-==========================================
+==========
 
 Introduction
+------------
 
-Usage, etc.
+This library stores tiles in a directory structure. Currently two types
+of storage are available:
+
+FileStorage: /path/to/tiles/z/x/y
+
+ZipFileStorage: path/to/tiles/d2/a2/ac.zip
+                with entries like 3c0e4b8653279e31a2480d0792 in the zipfile.
+
+The second storage offers a much more balanced folder structure and
+limits the total amount of files by grouping some files together in
+uncompressed zipfiles. Of course when reading there is an extra seek
+operation involved for the zipfile index and the zoom structure is no
+longer obvious from inspection of the main folder.
+
+Neither type stores the image with an extension. Tiles that contain any
+transparency (such as at edges of the datasource) are stored with PNG
+compression, whereas the others are stored with JPEG compression. It
+is up to the user of the library to determine the type from the first
+bytes. See for example:
+
+https://en.wikipedia.org/wiki/Magic_number_(programming)
+
+
+Usage
+-----
+
+The sources needs to be a 4-band (rgba) GDAL datasource. If only 3-band
+data is available, the easiest way to add alpha to it is to make a
+virtual dataset with added alpha::
+
+    $ gdalbuildvrt source.vrt source.tif -addalpha
+
+To create a bunch of tiles from an rgba source use the creator script::
+
+    $ bin/tile-creator source.tif path/to/tiles 15
+
+To use the created storage in another application::
+
+    >>> from tile_store import storages
+        storage = storages.ZipFileStorage('path/to/tiles')
+        image_data = storage[x, y, z]
+
+To determine a suitable zoom one could use the zoom table::
+
+    $ bin/tile-table
 
 
 Post-nensskel setup TODO
@@ -11,20 +56,6 @@ Post-nensskel setup TODO
 
 Here are some instructions on what to do after you've created the project with
 nensskel.
-
-- Fill in a short description on https://github.com/lizardsystem/tile-store or
-  https://github.com/nens/tile-store if you haven't done so already.
-
-- Use the same description in the ``setup.py``'s "description" field.
-
-- Fill in your username and email address in the ``setup.py``, see the
-  ``TODO`` fields. If you use it, also check the ``bower.json``.
-
-- Also add your name to ``CREDITS.rst``. It is open source software, so you
-  should claim credit!
-
-- Check https://github.com/nens/tile-store/settings/collaboration if the team
-  "Nelen & Schuurmans" has access.
 
 - Add a new jenkins job at
   http://buildbot.lizardsystem.nl/jenkins/view/djangoapps/newJob or

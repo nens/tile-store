@@ -10,6 +10,9 @@ long_description = '\n\n'.join([
 
 install_requires = [
     'setuptools',
+    'gdal',
+    'Pillow',
+    'numpy',
     ],
 
 tests_require = [
@@ -19,13 +22,14 @@ tests_require = [
 
 setup(name='tile-store',
       version=version,
-      description="TODO",
+      description=('Storage library with management'
+                   'scripts for storage of big tiled maps.'),
       long_description=long_description,
       # Get strings from http://www.python.org/pypi?%3Aaction=list_classifiers
       classifiers=[],
       keywords=[],
-      author='TODO',
-      author_email='TODO@nelen-schuurmans.nl',
+      author='arjan.verkerk',
+      author_email='arjan.verkerk@nelen-schuurmans.nl',
       url='',
       license='GPL',
       packages=['tile_store'],
@@ -36,5 +40,7 @@ setup(name='tile-store',
       extras_require={'test': tests_require},
       entry_points={
           'console_scripts': [
+              'tile-table   = tile_store.table:main',
+              'tile-creator = tile_store.creator:main',
           ]},
       )
