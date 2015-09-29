@@ -68,9 +68,14 @@ class ZipFileStorage(AbstractStorage):
                 lock.release()
 
     def get_path_and_key(self, key):
-        md5 = hashlib.md5(struct.pack('3q', *key)).hexdigest()
-        path = os.path.join(self.path, md5[0:2], md5[2:4], md5[4:6] + '.zip')
-        return path, md5[6:]
+        # unique zipfile paths per 16 x 16 images
+        x, y, z = key
+        p, q = x >> 4, y >> 4
+        md5 = hashlib.md5(struct.pack('3q', p, q, z)).hexdigest()
+        path = os.path.join(self.path, md5[0:2], md5[2:4], md5[4:] + '.zip')
+
+        # unique entries in zipfiles
+        return path, hashlib.md5(struct.pack('3q', x, y, z)).hexdigest()
 
     def __setitem__(self, key, value):
         path, zkey = self.get_path_and_key(key)

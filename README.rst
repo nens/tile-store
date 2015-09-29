@@ -9,12 +9,12 @@ of storage are available:
 
 FileStorage: /path/to/tiles/z/x/y
 
-ZipFileStorage: path/to/tiles/d2/a2/ac.zip
-                with entries like 3c0e4b8653279e31a2480d0792 in the zipfile.
+ZipFileStorage: path/to/tiles/07/90/b260b82ce2f2d56f84a4035e6a71.zip
+                with zipfile entries like b381526dc6b8942ef945a06365fea598
 
 The second storage offers a much more balanced folder structure and
-limits the total amount of files by grouping some files together in
-uncompressed zipfiles. Of course when reading there is an extra seek
+limits the total amount of files by grouping up to 256 images together
+in uncompressed zipfiles. Of course when reading there is an extra seek
 operation involved for the zipfile index and the zoom structure is no
 longer obvious from inspection of the main folder.
 
