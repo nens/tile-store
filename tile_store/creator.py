@@ -69,6 +69,18 @@ class BBox(object):
 
         self.x1, self.y1, self.x2, self.y2 = min(x), min(y), max(x), max(y)
 
+    def get_xranges(self, zoom):
+        """ Return tile ranges for a zoom level. """
+        s = LIM / 2 ** zoom  # edge length
+        h = LIM / 2          # half the earth
+
+        x1 = int(math.floor((h + self.x1) / s))
+        y1 = int(math.floor((h - self.y2) / s))
+        x2 = int(math.ceil((h + self.x2) / s))
+        y2 = int(math.ceil((h - self.y1) / s))
+
+        return xrange(y1, y2), xrange(x1, x2)
+
 
 class DummyPool(object):
     """ Dummy pool in case multiprocessing is not used. """
@@ -203,35 +215,20 @@ class OverviewTile(TargetTile):
 
 class Level(object):
     """ A single zoomlevel of tiles. """
-    def __init__(self, **kwargs):
+    def __init__(self, bbox, zoom, tile, **kwargs):
+        self.tile = tile
+        self.zoom = zoom
         self.kwargs = kwargs
+        self.xranges = bbox.get_xranges(zoom)
 
     def __len__(self):
-        x, y = self.get_xranges()
+        x, y = self.xranges
         return len(x) * len(y)
 
     def __iter__(self):
         """ Return tile generator. """
-        kwargs = self.kwargs.copy()
-        kwargs.pop('bbox')
-
-        z = kwargs.pop('zoom')
-        t = kwargs.pop('tile')
-        for y, x in itertools.product(*self.get_xranges()):
-            yield t(x=x, y=y, z=z, **kwargs)
-
-    def get_xranges(self):
-        s = LIM / 2 ** self.kwargs['zoom']  # edge length
-        h = LIM / 2                         # half the earth
-
-        bbox = self.kwargs['bbox']
-
-        x1 = int(math.floor((h + bbox.x1) / s))
-        y1 = int(math.floor((h - bbox.y2) / s))
-        x2 = int(math.ceil((h + bbox.x2) / s))
-        y2 = int(math.ceil((h - bbox.y1) / s))
-
-        return xrange(y1, y2), xrange(x1, x2)
+        for y, x in itertools.product(*self.xranges):
+            yield self.tile(x=x, y=y, z=self.zoom, **self.kwargs)
 
 
 class Pyramid(object):
