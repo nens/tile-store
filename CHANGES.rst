@@ -2,7 +2,7 @@ Changelog of tile-store
 ===================================================
 
 
-0.3 (unreleased)
+0.3 (2015-09-30)
 ----------------
 
 - Addded a config for ease of previewing
