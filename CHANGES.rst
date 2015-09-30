@@ -5,7 +5,11 @@ Changelog of tile-store
 0.3 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Addded a config for ease of previewing
+
+- Fixed alpha bug when repeated addition of datasets
+
+- Implemented updating for ZipFileStorage
 
 
 0.2 (2015-09-29)
