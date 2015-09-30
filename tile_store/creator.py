@@ -226,10 +226,10 @@ class BaseTile(TargetTile):
 
     def get_sources(self):
         """ Yield both this tile and the master, for stitching. """
-        yield master
         dataset = self.as_dataset()
         if dataset is not None:
             yield dataset
+        yield master
 
 
 class OverviewTile(TargetTile):
