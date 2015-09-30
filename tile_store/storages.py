@@ -82,7 +82,20 @@ class ZipFileStorage(AbstractStorage):
         prepare(path)
         with self.acquire():
             with zipfile.ZipFile(path, mode='a') as archive:
-                archive.writestr(zkey, value)
+                zkeys = archive.namelist()
+                if zkey not in zkeys:
+                    archive.writestr(zkey, value)
+                    return
+
+            # move all other keys to new zipfile
+            ext = '.in'
+            with zipfile.ZipFile(path) as source:
+                with zipfile.ZipFile(path + ext, mode='a') as target:
+                    target.writestr(zkey, value)
+                    zkeys.remove(zkey)
+                    for zkey in zkeys:
+                        target.writestr(zkey, source.read(zkey))
+            os.rename(path + ext, path)
 
     def __getitem__(self, key):
         path, zkey = self.get_path_and_key(key)

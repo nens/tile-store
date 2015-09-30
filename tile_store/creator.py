@@ -15,9 +15,11 @@ from __future__ import division
 import argparse
 import io
 import itertools
+import json
 import logging
 import math
 import multiprocessing
+import os
 import sys
 
 from tile_store import datasets
@@ -33,7 +35,8 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 LIM = 2 * 6378137 * math.pi
-WKT = osr.GetUserInputAsWKT(str('epsg:3857'))
+WGS84 = osr.GetUserInputAsWKT(str('epsg:4326'))
+MERCATOR = osr.GetUserInputAsWKT(str('epsg:3857'))
 GRA = {n[4:].lower(): getattr(gdal, n)
        for n in dir(gdal) if n.startswith('GRA')}
 
@@ -63,7 +66,7 @@ class BBox(object):
 
         # transform
         source = osr.SpatialReference(dataset.GetProjection())
-        target = osr.SpatialReference(WKT)
+        target = osr.SpatialReference(MERCATOR)
         ct = osr.CoordinateTransformation(source, target)
         x, y = zip(*ct.TransformPoints(coords))[:2]
 
@@ -80,6 +83,44 @@ class BBox(object):
         y2 = int(math.ceil((h - self.y1) / s))
 
         return xrange(y1, y2), xrange(x1, x2)
+
+    def get_extent(self):
+        """ Return wgs84 extent. """
+        coords = (self.x1, self.y1), (self.x2, self.y2)
+        source = osr.SpatialReference(MERCATOR)
+        target = osr.SpatialReference(WGS84)
+        ct = osr.CoordinateTransformation(source, target)
+        return [c for p in ct.TransformPoints(coords) for c in p[:2]]
+
+
+class Config(object):
+    def __init__(self, path, zoom):
+        self.path = os.path.join(path, 'tiles.json')
+
+        # check for config
+        try:
+            self.config = json.load(open(self.path))
+        except IOError:
+            self.config = {'zoom': zoom}
+            return
+
+        # check for zoom
+        if zoom != self.config['zoom']:
+            raise ValueError(self.config['zoom'])
+
+    def update(self, extent):
+        """ Update and save config. """
+        # calculate new extent
+        if 'extent' not in self.config:
+            self.config['extent'] = extent
+        else:
+            x1, y1, x2, y2 = zip(extent, self.config['extent'])
+            self.config['extent'] = min(x1), min(y1), max(x2), max(y2)
+
+        # save
+        path = self.path + '.in'
+        json.dump(self.config, open(path, 'w'))
+        os.rename(path, self.path)
 
 
 class DummyPool(object):
@@ -132,7 +173,7 @@ class Tile(object):
 
         # return as dataset
         dataset = gdal_array.OpenArray(array)
-        dataset.SetProjection(WKT)
+        dataset.SetProjection(MERCATOR)
         dataset.SetGeoTransform(self.get_geo_transform())
         return dataset
 
@@ -150,7 +191,7 @@ class TargetTile(Tile):
         """ Make tile and store data on data attribute. """
         # target
         array = np.zeros((4, 256, 256), dtype='u1')
-        kwargs = {'projection': WKT,
+        kwargs = {'projection': MERCATOR,
                   'geo_transform': self.get_geo_transform()}
 
         with datasets.Dataset(array, **kwargs) as target:
@@ -253,8 +294,15 @@ class Pyramid(object):
             yield Level(tile=OverviewTile, zoom=zoom, method=gra2, **kwargs)
 
 
-def tiles(source_path, target_path, classic, single, verbose, **kwargs):
+def tiles(source_path, target_path, classic, single, verbose, zoom, **kwargs):
     """ Create tiles. """
+    # inspect target
+    try:
+        config = Config(path=target_path, zoom=zoom)
+    except ValueError as error:
+        logging.info('Existing target has zoom {}'.format(error))
+        return
+
     # inspect dataset
     dataset = gdal.Open(source_path)
     bbox = BBox(dataset)
@@ -263,7 +311,7 @@ def tiles(source_path, target_path, classic, single, verbose, **kwargs):
     Storage = storages.FileStorage if classic else storages.ZipFileStorage
     storage = Storage(path=target_path, mode='a')
 
-    pyramid = Pyramid(storage=storage, bbox=bbox, **kwargs)
+    pyramid = Pyramid(bbox=bbox, storage=storage, zoom=zoom, **kwargs)
 
     # separate counts for baselevel and the remaining levels
     total1 = len(iter(pyramid).next())
@@ -293,6 +341,9 @@ def tiles(source_path, target_path, classic, single, verbose, **kwargs):
             else:
                 progress = tile_count / total1
                 gdal.TermProgress_nocb(progress)
+
+    # update config
+    config.update(bbox.get_extent())
 
 
 def get_parser():
