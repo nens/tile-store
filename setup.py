@@ -40,7 +40,7 @@ setup(name='tile-store',
       extras_require={'test': tests_require},
       entry_points={
           'console_scripts': [
-              'tile-table   = tile_store.table:main',
-              'tile-creator = tile_store.creator:main',
+              'tile-table = tile_store.table:main',
+              'tile-put   = tile_store.put:main',
           ]},
       )

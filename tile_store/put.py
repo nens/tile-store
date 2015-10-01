@@ -294,7 +294,7 @@ class Pyramid(object):
             yield Level(tile=OverviewTile, zoom=zoom, method=gra2, **kwargs)
 
 
-def tiles(source_path, target_path, classic, single, verbose, zoom, **kwargs):
+def put(source_path, target_path, classic, single, verbose, zoom, **kwargs):
     """ Create tiles. """
     # inspect target
     try:
@@ -379,7 +379,7 @@ def get_parser():
 
 
 def main():
-    """ Call tiles with args from parser. """
+    """ Call put with args from parser. """
     # logging
     kwargs = vars(get_parser().parse_args())
     if kwargs['verbose']:
@@ -390,7 +390,7 @@ def main():
 
     # run or fail
     try:
-        tiles(**kwargs)
+        put(**kwargs)
         return 0
     except:
         logger.exception('An exception has occurred.')
