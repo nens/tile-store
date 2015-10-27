@@ -165,10 +165,23 @@ class Tile(object):
         except KeyError:
             return
 
-        # convert to rgba array
-        array = np.array(Image.open(io.BytesIO(data))).transpose(2, 0, 1)
-        if len(array) == 3:
-            # add alpha
+        # cast to data with alpha
+        image = Image.open(io.BytesIO(data))
+
+        # deal with LA interface
+        if image.mode == 'LA':
+            array = np.array(image.getdata()).astype('u1').reshape(256, 256, 2)
+        else:
+            array = np.array(image)
+
+        # put in desired shape
+        if image.mode == 'L':
+            array = array[np.newaxis, ...]
+        else:
+            array = array.transpose(2, 0, 1)
+
+        # add alpha
+        if not image.mode.endswith('A'):
             array = np.vstack([array, np.full_like(array[:1], 255)])
 
         # return as dataset
@@ -189,8 +202,11 @@ class TargetTile(Tile):
 
     def make(self):
         """ Make tile and store data on data attribute. """
+        # mode depends on master
+        mode = 'L' if master.RasterCount < 3 else 'RGB'
+
         # target
-        array = np.zeros((4, 256, 256), dtype='u1')
+        array = np.zeros((2 if mode == 'L' else 4, 256, 256), dtype='u1')
         kwargs = {'projection': MERCATOR,
                   'geo_transform': self.get_geo_transform()}
 
@@ -204,12 +220,20 @@ class TargetTile(Tile):
             self.data = None
             return
 
+        # prepare image data
         buf = io.BytesIO()
         if (array[-1] < 255).any():
-            image = Image.fromarray(array.transpose(1, 2, 0))
+            # alpha
+            view = array.transpose(1, 2, 0)
+            image = Image.fromarray(view, mode=mode + 'A')
             image.save(buf, format='PNG')
         else:
-            image = Image.fromarray(array[:3].transpose(1, 2, 0))
+            # no alpha
+            if mode == 'L':
+                view = array[0]
+            else:
+                view = array[:-1].transpose(1, 2, 0)
+            image = Image.fromarray(view, mode=mode)
             image.save(buf, format='JPEG', quality=self.quality)
 
         # save
@@ -220,10 +244,6 @@ class BaseTile(TargetTile):
     """
     A tile that has itself and a master as sources.
     """
-    def __init__(self, **kwargs):
-        """ Same as target tile, but preload. """
-        super(BaseTile, self).__init__(**kwargs)
-
     def get_sources(self):
         """ Yield both this tile and the master, for stitching. """
         dataset = self.as_dataset()
@@ -236,10 +256,6 @@ class OverviewTile(TargetTile):
     """
     A tile that has its subtiles as sources.
     """
-    def __init__(self, **kwargs):
-        """ Same as target tile, but store preloaded subtiles. """
-        super(OverviewTile, self).__init__(**kwargs)
-
     def get_subtiles(self):
         z = 1 + self.z
         for dy, dx in itertools.product([0, 1], [0, 1]):
