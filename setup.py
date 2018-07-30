@@ -10,7 +10,7 @@ long_description = '\n\n'.join([
 
 install_requires = [
     'setuptools',
-    'gdal',
+    # 'gdal',
     'Pillow',
     'numpy',
     ],
