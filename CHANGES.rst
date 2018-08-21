@@ -5,7 +5,7 @@ Changelog of tile-store
 0.4 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Remove GDAL dependency to be able to use pip as package manager.
 
 
 0.3 (2015-09-30)
