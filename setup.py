@@ -10,7 +10,9 @@ long_description = '\n\n'.join([
 
 install_requires = [
     'setuptools',
-    # 'gdal',
+    # 'gdal', We do need GDAL but installation via pip does not work optimally.
+    #         If you use pip, best to install pygdal. We do not specify pygdal
+    #         here to be compatible with installations that use gdal already.
     'Pillow',
     'numpy',
     ],
